@@ -4,3 +4,9 @@ dist/
 .env
 .env.local
 .env.*.local
+*.js
+*.css
+*.gz
+!vite.config.js
+.vscode/
+.idea/
