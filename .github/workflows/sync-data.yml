@@ -1,0 +1,60 @@
+name: Sync FAQ Data from Issues
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sync FAQ data from issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            
+            const dataPath = path.join(process.cwd(), 'data', 'faqData.json');
+            let faqData = { faqList: [], categories: [] };
+            
+            if (fs.existsSync(dataPath)) {
+              faqData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+            }
+            
+            const newItem = {
+              id: Date.now(),
+              title: issue.title,
+              content: body,
+              category: '校园活动',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              author: issue.user.login,
+              comments: [],
+              files: [],
+              isTop: false,
+              isApproved: false
+            };
+            
+            faqData.faqList.push(newItem);
+            
+            fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+            fs.writeFileSync(dataPath, JSON.stringify(faqData, null, 2));
+            
+            console.log('FAQ data synced successfully');
+
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: 'feat: sync FAQ data from issue #${{ github.event.issue.number }}'
+          add: 'data/faqData.json'
