@@ -315,7 +315,7 @@ const scrollToFaq = (id) => {
 
 const handleAdminClick = () => {
   const token = localStorage.getItem('admin_token')
-  if (token === 'admin123') {
+  if (token) {
     router.push('/admin')
   } else {
     showLoginDialog.value = true
@@ -323,15 +323,26 @@ const handleAdminClick = () => {
 }
 
 const handleLogin = () => {
-  loginFormRef.value.validate((valid) => {
+  loginFormRef.value.validate(async (valid) => {
     if (valid) {
-      if (loginForm.password === 'admin123') {
-        localStorage.setItem('admin_token', 'admin123')
-        showLoginDialog.value = false
-        loginForm.password = ''
-        router.push('/admin')
-      } else {
-        alert('密令错误，请重新输入')
+      const API_BASE = import.meta.env.VITE_API_BASE || ''
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: loginForm.password })
+        })
+        if (response.ok) {
+          const data = await response.json()
+          localStorage.setItem('admin_token', data.token)
+          showLoginDialog.value = false
+          loginForm.password = ''
+          router.push('/admin')
+        } else {
+          alert('密令错误，请重新输入')
+        }
+      } catch (error) {
+        alert('网络错误，请稍后重试')
       }
     }
   })

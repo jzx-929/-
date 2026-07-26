@@ -24,7 +24,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth) {
     const token = localStorage.getItem('admin_token')
-    if (token !== 'admin123') {
+    if (!token) {
       next('/')
       const event = new CustomEvent('showLoginDialog')
       window.dispatchEvent(event)

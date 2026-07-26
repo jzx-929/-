@@ -11,7 +11,7 @@ export default defineConfig({
             minRatio: 0.8
         })
     ],
-    base: '/CampusFAQ/',
+    base: process.env.VITE_BASE_URL || '/CampusFAQ/',
     server: {
         proxy: {
             '/CampusFAQ/github-api': {

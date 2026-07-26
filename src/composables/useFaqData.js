@@ -1,9 +1,9 @@
 import { computed } from 'vue'
-import { useGitHubData } from './useGitHubData'
+import { useApiData } from './useApiData'
 
 const BAD_WORDS = ['敏感词1', '敏感词2', '敏感词3', '暴力', '色情', '违法', '赌博', '毒品']
 
-const { faqList, categories: githubCategories, addFaq: githubAddFaq, deleteFaq: githubDeleteFaq, updateFaq: githubUpdateFaq, toggleTop: githubToggleTop, addComment: githubAddComment } = useGitHubData()
+const { faqList, categories: githubCategories, addFaq: githubAddFaq, deleteFaq: githubDeleteFaq, updateFaq: githubUpdateFaq, toggleTop: githubToggleTop, addComment: githubAddComment } = useApiData()
 
 const filterBadWords = (text) => {
   if (!text) return text
@@ -76,7 +76,7 @@ export function useFaqData() {
     }
     
     await githubAddFaq(newFaq)
-    return newFaq
+    return faqList.value.find(item => item.question === faq.question) || newFaq
   }
 
   const updateFaq = async (id, updatedFaq) => {
@@ -94,8 +94,8 @@ export function useFaqData() {
         files: updatedFaq.files !== undefined ? updatedFaq.files : faqList.value[index].files
       }
       
-      await githubUpdateFaq(id, updated)
-      return updated
+      const result = await githubUpdateFaq(id, updated)
+      return result || updated
     }
     return null
   }

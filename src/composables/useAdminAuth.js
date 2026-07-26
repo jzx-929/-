@@ -1,21 +1,27 @@
 import { ref } from 'vue'
 
 const ADMIN_TOKEN_KEY = 'admin_token'
-const ADMIN_PASSWORD = 'admin123'
-
 const isAuthenticated = ref(false)
+
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 const loadAuthState = () => {
   const token = localStorage.getItem(ADMIN_TOKEN_KEY)
-  isAuthenticated.value = token === ADMIN_PASSWORD
+  isAuthenticated.value = !!token
 }
 
 loadAuthState()
 
 export function useAdminAuth() {
-  const login = (password) => {
-    if (password === ADMIN_PASSWORD) {
-      localStorage.setItem(ADMIN_TOKEN_KEY, ADMIN_PASSWORD)
+  const login = async (password) => {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    })
+    if (response.ok) {
+      const data = await response.json()
+      localStorage.setItem(ADMIN_TOKEN_KEY, data.token)
       isAuthenticated.value = true
       return true
     }
