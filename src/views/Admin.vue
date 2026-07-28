@@ -319,7 +319,7 @@ import { useFaqData } from '../composables/useFaqData'
 import { compressImage, fileToBase64, isImageFile, validateFileSize } from '../utils/fileUpload'
 
 const router = useRouter()
-const { faqList, categories, addFaq, updateFaq, deleteFaq, toggleTop, exportJson } = useFaqData()
+const { faqList, categories, addFaq, updateFaq, deleteFaq, batchDelete, toggleTop, exportJson } = useFaqData()
 
 const loading = ref(false)
 const searchKeyword = ref('')
@@ -360,14 +360,14 @@ const tagTypes = {
   '军训安排': 'warning',
   '学习课程': 'info',
   '校园活动': 'danger',
-  '校园生活': '',
+  '校园生活': 'info',
   '竞赛科研': 'warning',
   '招新宣传': 'danger',
-  '其他': ''
+  '其他': 'info'
 }
 
 const getTagType = (category) => {
-  return tagTypes[category] || ''
+  return tagTypes[category] || 'info'
 }
 
 const isAllSelected = computed(() => {
@@ -529,9 +529,7 @@ const handleBatchDelete = () => {
 }
 
 const confirmBatchDelete = async () => {
-  for (const id of selectedIds.value) {
-    await deleteFaq(id)
-  }
+  await batchDelete(selectedIds.value)
   showBatchDeleteDialog.value = false
   selectedIds.value = []
 }

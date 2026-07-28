@@ -95,6 +95,29 @@ const deleteFaq = async (id) => {
   }
 }
 
+const batchDelete = async (ids) => {
+  try {
+    const token = localStorage.getItem('admin_token')
+    const response = await fetch(`${API_BASE}/api/faq/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ ids })
+    })
+    if (response.ok) {
+      const result = await response.json()
+      const deleteIds = ids.map(id => parseInt(id))
+      faqList.value = faqList.value.filter(item => !deleteIds.includes(item.id))
+      return result
+    }
+  } catch (e) {
+    const deleteIds = ids.map(id => parseInt(id))
+    faqList.value = faqList.value.filter(item => !deleteIds.includes(item.id))
+  }
+}
+
 const updateFaq = async (id, updates) => {
   try {
     const token = localStorage.getItem('admin_token')
@@ -172,6 +195,7 @@ export const useApiData = () => {
     fetchData,
     addFaq,
     deleteFaq,
+    batchDelete,
     updateFaq,
     toggleTop,
     addComment

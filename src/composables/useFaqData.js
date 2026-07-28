@@ -3,7 +3,7 @@ import { useApiData } from './useApiData'
 
 const BAD_WORDS = ['敏感词1', '敏感词2', '敏感词3', '暴力', '色情', '违法', '赌博', '毒品']
 
-const { faqList, categories: githubCategories, addFaq: githubAddFaq, deleteFaq: githubDeleteFaq, updateFaq: githubUpdateFaq, toggleTop: githubToggleTop, addComment: githubAddComment } = useApiData()
+const { faqList, categories: githubCategories, addFaq: githubAddFaq, deleteFaq: githubDeleteFaq, batchDelete: githubBatchDelete, updateFaq: githubUpdateFaq, toggleTop: githubToggleTop, addComment: githubAddComment } = useApiData()
 
 const filterBadWords = (text) => {
   if (!text) return text
@@ -108,6 +108,12 @@ export function useFaqData() {
       return deleted
     }
     return null
+  }
+
+  const batchDelete = async (ids) => {
+    if (!ids || ids.length === 0) return null
+    const result = await githubBatchDelete(ids)
+    return result
   }
 
   const toggleTop = async (id) => {
@@ -246,6 +252,7 @@ export function useFaqData() {
     addFaq,
     updateFaq,
     deleteFaq,
+    batchDelete,
     toggleTop,
     addComment,
     deleteComment,

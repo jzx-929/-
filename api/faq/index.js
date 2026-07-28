@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       comments: comments || [],
       files: files || [],
       isTop: isTop || false,
-      isApproved: isApproved !== undefined ? isApproved : false
+      isApproved: isApproved !== undefined ? isApproved : true
     }
 
     data.faqList.unshift(newFaq)
