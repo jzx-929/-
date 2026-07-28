@@ -2,10 +2,22 @@ import { ref } from 'vue'
 import faqData from '../data/faq.json'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
+const FETCH_TIMEOUT = 8000 // 8秒超时
 
 const faqList = ref([])
 const categories = ref([])
 const loading = ref(false)
+
+async function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal })
+    return response
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
 
 const getDefaultData = () => {
   const list = faqData.map(item => ({
@@ -22,7 +34,7 @@ const getDefaultData = () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const response = await fetch(`${API_BASE}/api/faq`)
+    const response = await fetchWithTimeout(`${API_BASE}/api/faq`)
     if (response.ok) {
       const data = await response.json()
       faqList.value = data.faqList || []
@@ -31,11 +43,18 @@ const fetchData = async () => {
       throw new Error('API not available')
     }
   } catch (e) {
+    console.warn('API请求失败，使用本地数据:', e.message)
     const localData = localStorage.getItem('faq_data')
     if (localData) {
-      const parsed = JSON.parse(localData)
-      faqList.value = parsed.faqList || []
-      categories.value = parsed.categories || []
+      try {
+        const parsed = JSON.parse(localData)
+        faqList.value = parsed.faqList || []
+        categories.value = parsed.categories || []
+      } catch {
+        const defaultData = getDefaultData()
+        faqList.value = defaultData.faqList
+        categories.value = defaultData.categories
+      }
     } else {
       const defaultData = getDefaultData()
       faqList.value = defaultData.faqList
@@ -48,7 +67,7 @@ const fetchData = async () => {
 
 const addFaq = async (faq) => {
   try {
-    const response = await fetch(`${API_BASE}/api/faq`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/faq`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(faq)
@@ -60,6 +79,7 @@ const addFaq = async (faq) => {
     }
     throw new Error('提交失败')
   } catch (e) {
+    console.warn('API提交失败，使用本地模式:', e.message)
     const newFaq = {
       id: Date.now(),
       ...faq,
@@ -81,7 +101,7 @@ const addFaq = async (faq) => {
 const deleteFaq = async (id) => {
   try {
     const token = localStorage.getItem('admin_token')
-    const response = await fetch(`${API_BASE}/api/faq/${id}`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/faq/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -90,6 +110,7 @@ const deleteFaq = async (id) => {
       if (index !== -1) faqList.value.splice(index, 1)
     }
   } catch (e) {
+    console.warn('API删除失败:', e.message)
     const index = faqList.value.findIndex(item => item.id === id)
     if (index !== -1) faqList.value.splice(index, 1)
   }
@@ -98,7 +119,7 @@ const deleteFaq = async (id) => {
 const batchDelete = async (ids) => {
   try {
     const token = localStorage.getItem('admin_token')
-    const response = await fetch(`${API_BASE}/api/faq/batch`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/faq/batch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,6 +134,7 @@ const batchDelete = async (ids) => {
       return result
     }
   } catch (e) {
+    console.warn('API批量删除失败:', e.message)
     const deleteIds = ids.map(id => parseInt(id))
     faqList.value = faqList.value.filter(item => !deleteIds.includes(item.id))
   }
@@ -121,7 +143,7 @@ const batchDelete = async (ids) => {
 const updateFaq = async (id, updates) => {
   try {
     const token = localStorage.getItem('admin_token')
-    const response = await fetch(`${API_BASE}/api/faq/${id}`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/faq/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -136,6 +158,7 @@ const updateFaq = async (id, updates) => {
       return updated
     }
   } catch (e) {
+    console.warn('API更新失败:', e.message)
     const index = faqList.value.findIndex(item => item.id === id)
     if (index !== -1) {
       faqList.value[index] = { ...faqList.value[index], ...updates }
@@ -154,7 +177,7 @@ const toggleTop = async (id) => {
 
 const addComment = async (faqId, comment) => {
   try {
-    const response = await fetch(`${API_BASE}/api/comments/${faqId}`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/comments/${faqId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(comment)
@@ -169,6 +192,7 @@ const addComment = async (faqId, comment) => {
       return newComment
     }
   } catch (e) {
+    console.warn('API评论失败:', e.message)
     const faq = faqList.value.find(item => item.id === faqId)
     if (faq) {
       if (!faq.comments) faq.comments = []
