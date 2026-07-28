@@ -46,3 +46,5 @@ export async function initFaqData(initialData) {
   }
   return false
 }
+
+export { DEFAULT_CATEGORIES }
