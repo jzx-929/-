@@ -221,14 +221,14 @@ const tagTypes = {
   '军训安排': 'warning',
   '学习课程': 'info',
   '校园活动': 'danger',
-  '校园生活': '',
+  '校园生活': 'info',
   '竞赛科研': 'warning',
   '招新宣传': 'danger',
-  '其他': ''
+  '其他': 'info'
 }
 
 const tagType = computed(() => {
-  return tagTypes[props.faq.category] || ''
+  return tagTypes[props.faq.category] || 'info'
 })
 
 const handleReplyUploadChange = async (file, fileList) => {

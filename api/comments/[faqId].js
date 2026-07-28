@@ -27,15 +27,15 @@ export default async function handler(req, res) {
     if (!faq.comments) faq.comments = []
 
     const newComment = {
-      id: Date.now(),
+      id: req.body.id || Date.now(),
       content,
       author: author || '匿名用户',
-      time: new Date().toLocaleString('zh-CN', {
+      time: req.body.time || new Date().toLocaleString('zh-CN', {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit'
       }),
       files: files || [],
-      isApproved: true
+      isApproved: req.body.isApproved !== undefined ? req.body.isApproved : true
     }
 
     faq.comments.push(newComment)

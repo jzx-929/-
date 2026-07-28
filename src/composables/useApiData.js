@@ -78,7 +78,7 @@ const addFaq = async (faq) => {
   }
 }
 
-const removeFaq = async (id) => {
+const deleteFaq = async (id) => {
   try {
     const token = localStorage.getItem('admin_token')
     const response = await fetch(`${API_BASE}/api/faq/${id}`, {
@@ -171,7 +171,7 @@ export const useApiData = () => {
     loading,
     fetchData,
     addFaq,
-    deleteFaq: removeFaq,
+    deleteFaq,
     updateFaq,
     toggleTop,
     addComment

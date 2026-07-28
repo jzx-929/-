@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { question, answer, category, source, author, files } = req.body
+    const { id, question, answer, category, source, author, files, comments, isTop, isApproved } = req.body
 
     if (!question || !category) {
       return res.status(400).json({ error: '问题和分类为必填项' })
@@ -23,17 +23,17 @@ export default async function handler(req, res) {
 
     const data = await getFaqData()
     const newFaq = {
-      id: Date.now(),
+      id: id || Date.now(),
       question,
       answer: answer || '',
       category,
       source: source || '用户提问',
       author: author || '匿名用户',
-      time: new Date().toISOString().split('T')[0],
-      comments: [],
+      time: req.body.time || new Date().toISOString().split('T')[0],
+      comments: comments || [],
       files: files || [],
-      isTop: false,
-      isApproved: false
+      isTop: isTop || false,
+      isApproved: isApproved !== undefined ? isApproved : false
     }
 
     data.faqList.unshift(newFaq)
