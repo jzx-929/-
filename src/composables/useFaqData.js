@@ -3,7 +3,7 @@ import { useApiData } from './useApiData'
 
 const BAD_WORDS = ['敏感词1', '敏感词2', '敏感词3', '暴力', '色情', '违法', '赌博', '毒品']
 
-const { faqList, categories: githubCategories, addFaq: githubAddFaq, deleteFaq: githubDeleteFaq, batchDelete: githubBatchDelete, updateFaq: githubUpdateFaq, toggleTop: githubToggleTop, addComment: githubAddComment } = useApiData()
+const { faqList, categories: githubCategories, addFaq: githubAddFaq, deleteFaq: githubDeleteFaq, batchDelete: githubBatchDelete, updateFaq: githubUpdateFaq, toggleTop: githubToggleTop, addComment: githubAddComment, deleteComment: githubDeleteComment, reportFaq: githubReportFaq, resolveReport: githubResolveReport } = useApiData()
 
 const filterBadWords = (text) => {
   if (!text) return text
@@ -76,7 +76,7 @@ export function useFaqData() {
     }
     
     await githubAddFaq(newFaq)
-    return faqList.value.find(item => item.question === faq.question) || newFaq
+    return newFaq
   }
 
   const updateFaq = async (id, updatedFaq) => {
@@ -149,13 +149,14 @@ export function useFaqData() {
     return newComment
   }
 
-  const deleteComment = (faqId, commentId) => {
+  const deleteComment = async (faqId, commentId) => {
     const faq = faqList.value.find(item => item.id === faqId)
     if (!faq || !faq.comments) return null
 
     const index = faq.comments.findIndex(c => c.id === commentId)
     if (index !== -1) {
-      const deleted = faq.comments.splice(index, 1)[0]
+      const deleted = faq.comments[index]
+      await githubDeleteComment(faqId, commentId)
       return deleted
     }
     return null
@@ -246,6 +247,14 @@ export function useFaqData() {
     }
   })
 
+  const reportFaq = async (faqId, reason, reporter) => {
+    return await githubReportFaq(faqId, reason, reporter)
+  }
+
+  const resolveReport = async (faqId, action, reportId) => {
+    return await githubResolveReport(faqId, action, reportId)
+  }
+
   return {
     faqList,
     categories,
@@ -256,6 +265,8 @@ export function useFaqData() {
     toggleTop,
     addComment,
     deleteComment,
+    reportFaq,
+    resolveReport,
     getFaqById,
     exportJson,
     getCategoryCount,

@@ -1,28 +1,26 @@
 {
-    "name": "faq-cqust-math-ai",
+    "name": "campus-faq",
     "version": "1.0.0",
     "private": true,
     "scripts": {
         "dev": "vite",
-        "vercel:dev": "vercel dev",
         "build": "vite build",
+        "build:cloudbase": "vite build --mode cloudbase",
         "preview": "vite preview",
-        "deploy": "vite build && gh-pages -d dist",
-        "vercel:deploy": "vercel --prod"
+        "deploy:cloudbase": "npm run build:cloudbase && tcb framework deploy",
+        "deploy:cloudbase:hosting": "npm run build:cloudbase && tcb hosting deploy dist -e",
+        "deploy:cloudbase:function": "tcb fn deploy api --path cloudfunctions/api -e"
     },
     "dependencies": {
+        "@cloudbase/js-sdk": "^3.6.6",
         "@element-plus/icons-vue": "^2.3.1",
-        "@upstash/redis": "^1.34.0",
         "element-plus": "^2.6.3",
         "vue": "^3.4.21",
         "vue-router": "^4.6.4"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^5.0.4",
-        "fastclick": "^1.0.6",
-        "gh-pages": "^6.1.1",
         "terser": "^5.31.6",
-        "vercel": "^37.0.0",
         "vite": "^5.4.8",
         "vite-plugin-compression": "^0.5.1"
     }

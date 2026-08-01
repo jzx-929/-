@@ -39,6 +39,8 @@ const fetchData = async () => {
       const data = await response.json()
       faqList.value = data.faqList || []
       categories.value = data.categories || []
+      // API成功，清除可能存在的本地缓存（防止旧缓存导致数据不一致）
+      localStorage.removeItem('faq_data')
     } else {
       throw new Error('API not available')
     }
@@ -81,8 +83,8 @@ const addFaq = async (faq) => {
   } catch (e) {
     console.warn('API提交失败，使用本地模式:', e.message)
     const newFaq = {
-      id: Date.now(),
       ...faq,
+      id: faq.id || Date.now(),
       time: new Date().toISOString().split('T')[0],
       comments: [],
       files: faq.files || [],
@@ -99,73 +101,70 @@ const addFaq = async (faq) => {
 }
 
 const deleteFaq = async (id) => {
-  try {
-    const token = localStorage.getItem('admin_token')
-    const response = await fetchWithTimeout(`${API_BASE}/api/faq/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    if (response.ok) {
-      const index = faqList.value.findIndex(item => item.id === id)
-      if (index !== -1) faqList.value.splice(index, 1)
-    }
-  } catch (e) {
-    console.warn('API删除失败:', e.message)
-    const index = faqList.value.findIndex(item => item.id === id)
-    if (index !== -1) faqList.value.splice(index, 1)
+  const token = localStorage.getItem('admin_token')
+  const response = await fetchWithTimeout(`${API_BASE}/api/faq/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `删除失败 (HTTP ${response.status})`)
   }
+  // API删除成功，同步更新本地数据
+  const index = faqList.value.findIndex(item => item.id === id)
+  if (index !== -1) {
+    faqList.value.splice(index, 1)
+    // 重新索引ID，与后端reindexIds保持一致
+    faqList.value.forEach((item, idx) => {
+      item.id = idx + 1
+    })
+  }
+  return true
 }
 
 const batchDelete = async (ids) => {
-  try {
-    const token = localStorage.getItem('admin_token')
-    const response = await fetchWithTimeout(`${API_BASE}/api/faq/batch`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ ids })
-    })
-    if (response.ok) {
-      const result = await response.json()
-      const deleteIds = ids.map(id => parseInt(id))
-      faqList.value = faqList.value.filter(item => !deleteIds.includes(item.id))
-      return result
-    }
-  } catch (e) {
-    console.warn('API批量删除失败:', e.message)
-    const deleteIds = ids.map(id => parseInt(id))
-    faqList.value = faqList.value.filter(item => !deleteIds.includes(item.id))
+  const token = localStorage.getItem('admin_token')
+  const response = await fetchWithTimeout(`${API_BASE}/api/faq/batch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ ids })
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `批量删除失败 (HTTP ${response.status})`)
   }
+  const result = await response.json()
+  // API删除成功，同步更新本地数据
+  const deleteIds = ids.map(id => parseInt(id))
+  faqList.value = faqList.value.filter(item => !deleteIds.includes(item.id))
+  // 重新索引ID，与后端reindexIds保持一致
+  faqList.value.forEach((item, idx) => {
+    item.id = idx + 1
+  })
+  return result
 }
 
 const updateFaq = async (id, updates) => {
-  try {
-    const token = localStorage.getItem('admin_token')
-    const response = await fetchWithTimeout(`${API_BASE}/api/faq/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(updates)
-    })
-    if (response.ok) {
-      const updated = await response.json()
-      const index = faqList.value.findIndex(item => item.id === id)
-      if (index !== -1) faqList.value[index] = updated
-      return updated
-    }
-  } catch (e) {
-    console.warn('API更新失败:', e.message)
-    const index = faqList.value.findIndex(item => item.id === id)
-    if (index !== -1) {
-      faqList.value[index] = { ...faqList.value[index], ...updates }
-      return faqList.value[index]
-    }
+  const token = localStorage.getItem('admin_token')
+  const response = await fetchWithTimeout(`${API_BASE}/api/faq/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(updates)
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `更新失败 (HTTP ${response.status})`)
   }
-  return null
+  const updated = await response.json()
+  const index = faqList.value.findIndex(item => item.id === id)
+  if (index !== -1) faqList.value[index] = updated
+  return updated
 }
 
 const toggleTop = async (id) => {
@@ -209,6 +208,87 @@ const addComment = async (faqId, comment) => {
   return null
 }
 
+const deleteComment = async (faqId, commentId) => {
+  const token = localStorage.getItem('admin_token')
+  const response = await fetchWithTimeout(`${API_BASE}/api/comments/${faqId}?commentId=${commentId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `删除评论失败 (HTTP ${response.status})`)
+  }
+  const faq = faqList.value.find(item => item.id === faqId)
+  if (faq && faq.comments) {
+    const index = faq.comments.findIndex(c => c.id === commentId)
+    if (index !== -1) faq.comments.splice(index, 1)
+  }
+  return true
+}
+
+// 用户举报FAQ
+const reportFaq = async (faqId, reason, reporter) => {
+  const response = await fetchWithTimeout(`${API_BASE}/api/report/${faqId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason, reporter })
+  })
+  const result = await response.json()
+  if (!response.ok) {
+    throw new Error(result.error || '举报失败')
+  }
+  // 同步更新本地数据
+  const faq = faqList.value.find(item => item.id === faqId)
+  if (faq) {
+    if (!faq.reports) faq.reports = []
+    faq.reports.push({
+      id: Date.now(),
+      reason,
+      reporter: reporter || 'anonymous',
+      time: new Date().toLocaleString('zh-CN'),
+      status: 'pending'
+    })
+  }
+  return result
+}
+
+// 管理员处理举报
+const resolveReport = async (faqId, action, reportId) => {
+  const token = localStorage.getItem('admin_token')
+  const response = await fetchWithTimeout(`${API_BASE}/api/resolve/${faqId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ action, reportId })
+  })
+  const result = await response.json()
+  if (!response.ok) {
+    throw new Error(result.error || '处理失败')
+  }
+  // 同步更新本地数据
+  if (action === 'delete') {
+    const index = faqList.value.findIndex(item => item.id === faqId)
+    if (index !== -1) {
+      faqList.value.splice(index, 1)
+      faqList.value.forEach((item, idx) => { item.id = idx + 1 })
+    }
+  } else {
+    // ignore：将举报标记为已处理
+    const faq = faqList.value.find(item => item.id === faqId)
+    if (faq && faq.reports) {
+      if (reportId) {
+        const report = faq.reports.find(r => r.id === reportId)
+        if (report) report.status = 'resolved'
+      } else {
+        faq.reports.forEach(r => { r.status = 'resolved' })
+      }
+    }
+  }
+  return result
+}
+
 export const useApiData = () => {
   fetchData()
 
@@ -222,6 +302,9 @@ export const useApiData = () => {
     batchDelete,
     updateFaq,
     toggleTop,
-    addComment
+    addComment,
+    deleteComment,
+    reportFaq,
+    resolveReport
   }
 }

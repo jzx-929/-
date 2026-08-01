@@ -128,19 +128,47 @@ const getCategoryCount = (category) => {
 }
 
 @media screen and (max-width: 768px) {
+  .category-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .category-menu::-webkit-scrollbar {
+    display: none;
+  }
+  
   .menu-item {
-    padding: 8px 10px;
-    font-size: 13px;
-    gap: 10px;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 6px;
+    border-radius: 20px;
+    white-space: nowrap;
   }
   
   .icon-wrapper {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
   }
   
   .item-icon {
-    font-size: 12px;
+    font-size: 11px;
+  }
+  
+  .item-name {
+    text-align: center;
+  }
+  
+  .item-badge :deep(.el-badge__content) {
+    font-size: 10px;
+    height: 16px;
+    line-height: 16px;
+    padding: 0 5px;
   }
 }
 </style>

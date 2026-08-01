@@ -1,0 +1,39 @@
+{
+  "envId": "faq-cqust-d5gnb5tda6d2a55ee",
+  "functionRoot": "cloudfunctions",
+  "functions": [
+    {
+      "name": "api",
+      "timeout": 10,
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "memorySize": 256
+    }
+  ],
+  "framework": {
+    "name": "faq-cqust",
+    "plugins": {
+      "website": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "dist": "dist",
+          "envId": "faq-cqust-d5gnb5tda6d2a55ee"
+        }
+      },
+      "api": {
+        "use": "@cloudbase/framework-plugin-function",
+        "inputs": {
+          "functions": [
+            {
+              "name": "api",
+              "path": "cloudfunctions/api",
+              "runtime": "Nodejs16.13",
+              "memorySize": 256,
+              "timeout": 10
+            }
+          ]
+        }
+      }
+    }
+  }
+}

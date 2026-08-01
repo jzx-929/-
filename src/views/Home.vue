@@ -144,7 +144,7 @@
     <el-dialog 
       title="管理员登录" 
       v-model="showLoginDialog" 
-      width="400px"
+      width="min(400px, 92%)"
       :close-on-click-modal="false"
     >
       <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef" label-width="80px">
@@ -166,9 +166,9 @@
     <el-dialog 
       title="我要提问" 
       v-model="showAskDialog" 
-      width="600px"
+      width="min(600px, 92%)"
     >
-      <el-form :model="askForm" :rules="askRules" ref="askFormRef" label-width="80px">
+      <el-form :model="askForm" :rules="askRules" ref="askFormRef" label-width="72px" class="ask-form">
         <el-form-item label="问题标题" prop="question">
           <el-input 
             v-model="askForm.question" 
@@ -220,6 +220,22 @@
                 支持图片、PDF、Word等格式，单个文件不超过5MB，最多上传5个文件
               </div>
             </template>
+            <template #file="{ file }">
+              <div class="upload-file-preview">
+                <img
+                  v-if="file.raw && file.raw.type && file.raw.type.startsWith('image/')"
+                  :src="file.url"
+                  class="upload-preview-img"
+                />
+                <div v-else class="upload-doc-preview">
+                  <el-icon class="upload-doc-icon"><Document /></el-icon>
+                  <span class="upload-doc-name">{{ file.name }}</span>
+                </div>
+                <span class="upload-remove-btn" @click.stop="handleAskRemoveFile(file)">
+                  <el-icon><Close /></el-icon>
+                </span>
+              </div>
+            </template>
           </el-upload>
         </el-form-item>
       </el-form>
@@ -234,12 +250,12 @@
 <script setup>
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Notebook, Menu, CollectionTag, Clock, Star, Message, Setting, Upload, Picture } from '@element-plus/icons-vue'
+import { Menu, CollectionTag, Clock, Star, Message, Setting, Upload, Document, Close } from '@element-plus/icons-vue'
 import SearchBar from '../components/SearchBar.vue'
 import CategoryMenu from '../components/CategoryMenu.vue'
 import FaqList from '../components/FaqList.vue'
 import { useFaqData } from '../composables/useFaqData'
-import { compressImage, fileToBase64, isImageFile, validateFileSize } from '../utils/fileUpload'
+import { compressImage, dataURLtoBlob, isImageFile, validateFileSize, uploadFileToCloud } from '../utils/fileUpload'
 
 const router = useRouter()
 const { faqList, categories, addFaq } = useFaqData()
@@ -289,9 +305,15 @@ const latestFaq = computed(() => {
 const sortedFaqList = computed(() => {
   const list = [...faqList.value]
   if (sortBy.value === 'time') {
-    return list.sort((a, b) => new Date(b.time) - new Date(a.time))
+    return list.sort((a, b) => {
+      if (a.isTop !== b.isTop) return a.isTop ? -1 : 1
+      return new Date(b.time) - new Date(a.time)
+    })
   }
-  return list.sort((a, b) => a.id - b.id)
+  return list.sort((a, b) => {
+    if (a.isTop !== b.isTop) return a.isTop ? -1 : 1
+    return a.id - b.id
+  })
 })
 
 const handleCategorySelect = (category) => {
@@ -357,20 +379,18 @@ const handleAskUploadChange = async (file, fileList) => {
   try {
     let fileData
     if (isImageFile(file.raw)) {
-      fileData = await compressImage(file.raw)
+      const compressedUrl = await compressImage(file.raw)
+      const blob = dataURLtoBlob(compressedUrl)
+      fileData = await uploadFileToCloud(blob, file.raw.name, file.raw.type)
     } else {
-      fileData = await fileToBase64(file.raw)
+      fileData = await uploadFileToCloud(file.raw)
     }
     
-    askForm.files.push({
-      name: file.raw.name,
-      type: file.raw.type,
-      url: fileData
-    })
+    askForm.files.push(fileData)
     askUploadFiles.value = fileList
   } catch (error) {
-    console.error('文件处理失败:', error)
-    alert('文件处理失败，请重试')
+    console.error('文件上传失败:', error)
+    alert('文件上传失败，请重试')
   }
 }
 
@@ -380,6 +400,17 @@ const handleAskRemove = (file, fileList) => {
     askForm.files.splice(index, 1)
   }
   askUploadFiles.value = fileList
+}
+
+const handleAskRemoveFile = (file) => {
+  const index = askUploadFiles.value.findIndex(f => f.uid === file.uid || f.name === file.name)
+  if (index !== -1) {
+    askUploadFiles.value.splice(index, 1)
+  }
+  const formIndex = askForm.files.findIndex(f => f.name === file.name)
+  if (formIndex !== -1) {
+    askForm.files.splice(formIndex, 1)
+  }
 }
 
 const handleAsk = async () => {
@@ -441,10 +472,74 @@ const filteredCount = computed(() => {
 </script>
 
 <style scoped>
+.upload-file-preview {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.upload-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-doc-preview {
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+}
+
+.upload-doc-icon {
+  font-size: 28px;
+  color: #409EFF;
+}
+
+.upload-doc-name {
+  font-size: 11px;
+  color: #606266;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.3;
+  max-height: 28px;
+  overflow: hidden;
+}
+
+.upload-remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.upload-remove-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 .app-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .hero-banner {
@@ -462,6 +557,8 @@ const filteredCount = computed(() => {
   justify-content: space-between;
   align-items: center;
   gap: 32px;
+  width: 100%;
+  min-width: 0;
 }
 
 .banner-left {
@@ -650,6 +747,7 @@ const filteredCount = computed(() => {
   margin: 0 auto;
   padding: 28px 40px;
   gap: 24px;
+  overflow-x: hidden;
 }
 
 .app-sidebar {
@@ -827,80 +925,213 @@ const filteredCount = computed(() => {
 
 @media screen and (max-width: 768px) {
   .hero-banner {
-    padding: 24px 16px 20px;
+    padding: 20px 14px 16px;
+  }
+  
+  .banner-content {
+    gap: 16px;
   }
   
   .banner-left {
-    flex-direction: column;
-    text-align: center;
-    gap: 16px;
+    flex-direction: row;
+    text-align: left;
+    gap: 14px;
+    align-items: center;
   }
   
   .logo-placeholder {
-    width: 64px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
   }
   
   .logo-text {
-    font-size: 14px;
+    font-size: 13px;
   }
   
   .banner-title {
-    font-size: 26px;
+    font-size: 22px;
+    letter-spacing: 1px;
   }
   
   .banner-subtitle {
-    font-size: 12px;
+    font-size: 11px;
+    letter-spacing: 1px;
   }
   
   .banner-desc {
-    font-size: 12px;
-  }
-  
-  .header-stats {
-    gap: 16px;
-    padding: 10px 16px;
-  }
-  
-  .stat-value {
-    font-size: 20px;
-  }
-  
-  .stat-label {
     font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+  
+  .banner-right {
+    width: 100%;
+    align-items: stretch;
+    gap: 14px;
   }
   
   .banner-actions {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+  }
+  
+  .search-wrapper {
+    width: 100%;
   }
   
   .header-buttons {
-    justify-content: center;
+    justify-content: stretch;
+    gap: 8px;
+  }
+  
+  .ask-btn, .admin-btn {
+    flex: 1;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+  
+  .header-stats {
+    gap: 10px;
+    padding: 8px 12px;
+    justify-content: space-around;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
+  }
+  
+  .stat-divider {
+    height: 22px;
+  }
+  
+  .banner-motto {
+    display: none;
   }
   
   .app-main {
-    padding: 12px;
-    gap: 12px;
+    padding: 10px;
+    gap: 10px;
   }
   
   .app-sidebar {
     flex-direction: column;
+    order: 2;
+    gap: 10px;
+  }
+  
+  .app-content {
+    order: 1;
   }
   
   .sidebar-section {
-    padding: 14px;
+    padding: 12px;
+  }
+  
+  .sidebar-section:last-child {
+    display: none;
   }
   
   .section-title {
-    font-size: 14px;
-    margin-bottom: 12px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
   }
   
   .content-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 14px;
+  }
+  
+  .header-title-group h3 {
+    font-size: 16px;
+  }
+  
+  .sort-select {
+    width: 100px;
+  }
+  
+  .tag-cloud {
+    gap: 6px;
+  }
+  
+  .hot-tag {
+    font-size: 12px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .hero-banner {
+    padding: 16px 12px 14px;
+  }
+  
+  .banner-left {
+    gap: 10px;
+  }
+  
+  .logo-placeholder {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .logo-text {
+    font-size: 12px;
+  }
+  
+  .banner-title {
+    font-size: 18px;
+  }
+  
+  .banner-subtitle {
+    font-size: 10px;
+  }
+  
+  .banner-desc {
+    display: none;
+  }
+  
+  .header-stats {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  
+  .stat-value {
+    font-size: 16px;
+  }
+  
+  .stat-label {
+    font-size: 9px;
+  }
+  
+  .stat-divider {
+    height: 18px;
+  }
+  
+  .app-main {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .content-header {
+    padding: 10px 12px;
+  }
+  
+  .header-title-group h3 {
+    font-size: 15px;
+  }
+  
+  .ask-form :deep(.el-form-item__label) {
+    font-size: 13px;
+  }
+  
+  .ask-form :deep(.el-form-item) {
+    margin-bottom: 16px;
   }
 }
 </style>

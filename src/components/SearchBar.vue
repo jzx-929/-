@@ -113,6 +113,7 @@ watch(() => props.activeCategory, () => {
 .search-bar {
   position: relative;
   width: 360px;
+  max-width: 100%;
 }
 
 .search-input {
@@ -188,15 +189,21 @@ watch(() => props.activeCategory, () => {
 @media screen and (max-width: 768px) {
   .search-bar {
     width: 100%;
-    max-width: 300px;
+    max-width: 100%;
   }
   
   .search-input :deep(.el-input__wrapper) {
     padding: 5px 14px;
+    border-radius: 20px;
   }
   
   .search-icon {
     font-size: 16px;
+  }
+  
+  .search-result-count {
+    font-size: 11px;
+    padding: 1px 6px;
   }
   
   .suggestion-item {
